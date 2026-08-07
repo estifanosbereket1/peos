@@ -38,7 +38,11 @@ import {
 import { todayKey } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
-type Suggestion = { topic: string; source: "suggestion" | "user" | "ai" };
+type Suggestion = {
+  topic: string;
+  source: "suggestion" | "user" | "ai";
+  reason?: string;
+};
 type Topic = { id: string; name: string };
 
 const SOURCE_LABEL: Record<Suggestion["source"], string> = {
@@ -120,9 +124,16 @@ export function LearningApp() {
                   )}
                 >
                   <BookOpen className="size-4 shrink-0 text-muted-foreground" />
-                  <span className="min-w-0 flex-1 truncate">{s.topic}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate">{s.topic}</span>
+                    {s.reason ? (
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {s.reason}
+                      </span>
+                    ) : null}
+                  </span>
                   <span className="shrink-0 text-xs text-muted-foreground">
-                    {SOURCE_LABEL[s.source]}
+                    {s.reason ? "suggested for you" : SOURCE_LABEL[s.source]}
                   </span>
                 </button>
               ))

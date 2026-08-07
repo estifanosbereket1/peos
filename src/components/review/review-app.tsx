@@ -20,10 +20,13 @@ import { cn } from "@/lib/utils";
 import { DayNav } from "@/components/day-nav";
 import { addProofFromReview } from "@/app/(app)/proof/actions";
 import {
+  findReviewPatterns,
   getReview,
   listReviews,
   saveReview,
   searchReviews,
+  aiConfigured as reviewAiConfigured,
+  type ReviewPattern,
   type SaveReviewInput,
 } from "@/app/(app)/review/actions";
 import { todayKey } from "@/lib/time";
@@ -50,6 +53,11 @@ export function ReviewApp() {
   const [proofPrompt, setProofPrompt] = useState(false);
   const [proofSaved, setProofSaved] = useState(false);
   const [history, setHistory] = useState<Review[]>([]);
+  const [aiOn, setAiOn] = useState(false);
+
+  useEffect(() => {
+    void reviewAiConfigured().then(setAiOn);
+  }, []);
 
   const load = useCallback(async (key: string) => {
     const review = await getReview(key);
@@ -203,7 +211,62 @@ export function ReviewApp() {
         }}
         initialHistory={history}
       />
+
+      {aiOn && <PatternCard />}
     </div>
+  );
+}
+
+function PatternCard() {
+  const [loading, setLoading] = useState(false);
+  const [patterns, setPatterns] = useState<ReviewPattern[] | null>(null);
+  const [empty, setEmpty] = useState(false);
+
+  async function find() {
+    if (loading) return;
+    setLoading(true);
+    const p = await findReviewPatterns();
+    setLoading(false);
+    setPatterns(p);
+    setEmpty(p.length === 0);
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Patterns</CardTitle>
+        <CardDescription>
+          Recurring things across your last ~30 reviews. Runs only when you
+          ask — needs at least 7 reviews to say anything honest.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        <Button
+          className="self-start"
+          variant="outline"
+          onClick={() => void find()}
+          disabled={loading}
+        >
+          {loading ? "Looking…" : "Find patterns"}
+        </Button>
+        {patterns && patterns.length > 0 && (
+          <ul className="flex flex-col gap-2">
+            {patterns.map((p, i) => (
+              <li key={i} className="flex flex-col gap-0.5 rounded-md border bg-muted/30 px-3 py-2">
+                <p className="text-sm font-medium">{p.pattern}</p>
+                <p className="text-sm text-muted-foreground">{p.evidence}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+        {empty && (
+          <p className="text-sm text-muted-foreground">
+            Not enough data yet — keep reviewing and check back after a few more
+            entries.
+          </p>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

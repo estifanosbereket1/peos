@@ -15,9 +15,14 @@ import { Textarea } from "@/components/ui/textarea";
 
 import {
   addProof,
+  aiConfigured,
   deleteProof,
   getProof,
   searchProof,
+  summarizeGrowth,
+  saveGrowthSummary,
+  listGrowthSummaries,
+  type GrowthSummaryRow,
 } from "@/app/(app)/proof/actions";
 
 type ProofRow = {
@@ -31,15 +36,22 @@ export function ProofApp() {
   const [text, setText] = useState("");
   const [rows, setRows] = useState<ProofRow[]>([]);
   const [query, setQuery] = useState("");
+  const [aiOn, setAiOn] = useState(false);
 
   const load = useCallback(async () => {
     setRows(await getProof());
   }, []);
 
+  const checkAi = useCallback(async () => {
+    const configured = await aiConfigured();
+    setAiOn(configured);
+  }, []);
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
-  }, [load]);
+    checkAi();
+  }, [load, checkAi]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -69,6 +81,8 @@ export function ProofApp() {
           </Button>
         </CardContent>
       </Card>
+
+      {aiOn && <SummaryCard />}
 
       <Card>
         <CardHeader>
@@ -102,6 +116,99 @@ export function ProofApp() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function SummaryCard() {
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [savedRows, setSavedRows] = useState<GrowthSummaryRow[]>([]);
+
+  const loadSaved = useCallback(async () => {
+    setSavedRows(await listGrowthSummaries());
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadSaved();
+  }, [loadSaved]);
+
+  async function summarize() {
+    if (loading) return;
+    setLoading(true);
+    const res = await summarizeGrowth();
+    setLoading(false);
+    setResult(res?.text ?? null);
+    setSaved(false);
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Growth summary</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        <Button
+          className="self-start"
+          variant="outline"
+          onClick={() => void summarize()}
+          disabled={loading}
+        >
+          {loading ? "Summarizing…" : "Summarize my growth"}
+        </Button>
+        {result && (
+          <div className="rounded-md border bg-muted/30 px-3 py-2.5">
+            <p className="whitespace-pre-wrap text-sm">{result}</p>
+            <div className="mt-2 flex items-center justify-between">
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {formatDateTime(new Date())}
+              </span>
+              {!saved && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    void (async () => {
+                      await saveGrowthSummary(result);
+                      setSaved(true);
+                      await loadSaved();
+                    })();
+                  }}
+                >
+                  Save summary
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+        {!result && !loading && (
+          <p className="text-sm text-muted-foreground">
+            Needs at least a few proof entries or night-review wins. Only runs
+            when you ask.
+          </p>
+        )}
+        {savedRows.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+              Past summaries
+            </p>
+            <ul className="flex flex-col divide-y">
+              {savedRows.map((s) => (
+                <li key={s.id} className="flex flex-col gap-0.5 py-2">
+                  <p className="whitespace-pre-wrap text-sm text-muted-foreground">
+                    {s.content}
+                  </p>
+                  <span className="text-xs text-muted-foreground/70 tabular-nums">
+                    {formatDateTime(s.createdAt)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -155,4 +262,13 @@ function SearchResults({ query }: { query: string }) {
   if (rows.length === 0)
     return <p className="text-sm text-muted-foreground">No matches.</p>;
   return <ProofList rows={rows} onDelete={() => {}} />;
+}
+
+function formatDateTime(d: Date) {
+  return d.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }

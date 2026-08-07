@@ -17,11 +17,23 @@
 ## Key decisions
 - DB driver `postgres-js` (portable: works local + Neon pooled w/ `prepare:false`). NOT neon-http (HTTP driver can't reach local TCP).
 - Day rollover = **4am local** via shared util; `DAY_ROLLOVER_HOUR = 4`.
-- AI learning suggestions: **stubbed** — `source` column accepts `suggestion|user|ai`, provider returns nothing in v1.
+- Groq AI: server-only `fetch` (no SDK), 3 on-demand features, JSON-mode w/ shared `callGroq` helper that returns `null` on any failure so the app degrades; missing `GROQ_API_KEY` hides feature buttons entirely.
 - PWA: **final polish phase**, after dashboard.
 - shadcn/ui + sonner toasts + light-first calm theme.
 
 ## Progress log (newest first)
+
+### DONE — Groq AI Integration (Learning Suggestions, Proof Summarizer, Review Pattern-Spotter)
+Real Groq calls now back three on-demand features. Schema 0011 applied: `growth_summaries` (id, user_id, content, created_at + index). All gates clean (typecheck/lint/build) + all routes 200 (auth-gated → /login).
+
+- **Verdict note: AI is deliberately server-only + graceful-degrade.** No Groq key → feature buttons hide entirely; app fully works. A failed/empty call returns quietly (insufficient-history messages, never errors).
+- **`src/lib/ai/groq.ts`:** single shared `callGroq<Shape>(system, user, jsonMode?)` — plain `fetch` to `https://api.groq.com/openai/v1/chat/completions`, model `llama-3.3-70b-versatile`, 15s abort timeout, `temperature 0.2`, `cache: no-store`. JSON-mode sends `response_format:{type:"json_object"}`+`json:true` and strips code fences before parse. Returns `null` on missing key / non-2xx / malformed JSON so callers degrade, never crash. `isGroqConfigured()` = `Boolean(process.env.GROQ_API_KEY)` (server-only). No `groq-sdk`.
+- **Feature 1 — Learning suggestions (/learn):** `src/lib/learning-suggestions.ts` now = first 3 slots (user topic pool + rotating categories) + up to 2 AI suggestions (STRICT JSON `{suggestions:[{topic,reason}]}`) drawn from the user's last 10 learning-log entries (reversed newest-last); requires ≥3 history rows or falls back to more rotating categories so it always yields 5. `ai` items shown with a "suggested for you" tag + one-line reason. `getSuggestionsForDay` in `learn/actions.ts` passes real history now.
+- **Feature 2 — Growth summarizer (proof):** "Summarize my growth" button (`aiConfigured()`-gated) → on-demand `summarizeGrowth()`: reads ≤40 proof entries + last-30-day night-review wins (day-key window via `shiftDayKey(todayKey(), -30)`), needs ≥3 entries OR ≥3 wins else returns null; plain-text 2-3 paragraph calm summary rendered inline w/ timestamp + "Save summary" → persists to `growth_summaries` (browser newest-first list in "Past summaries"). Buttons gated on `isGroqConfigured()`.
+- **Feature 3 — Review pattern-spotter:** "Find patterns" button (gated) → `findReviewPatterns()`: last 30 night reviews formatted with energy/wins/improve/next, needs ≥7 reviews → quiet "not enough data yet" message otherwise; JSON `{patterns:[{pattern,evidence}]}` → 2-4 cards.
+- **Files:** new `src/lib/ai/groq.ts`, `src/components/proof/proof-app.tsx` (plus SummaryCard + past-summaries list), `src/components/review/review-app.tsx` (+PatternCard), actions extended in `src/app/(app)/proof/actions.ts` & `review/actions.ts`. Env: optional `GROQ_API_KEY` (`.env.example` note; no key → buttons hidden).
+- Verified: db:generate → 0011, migrate applied; typecheck/lint/build clean; all routes 200.
+- GOTCHA: `react-hooks/set-state-in-effect` flags the earlier ESLint-disable-as-unused combo — the disable belongs directly above the `load()` call line inside the effect; `or` import must be trimmed when not used.
 
 ### DONE — Money Management (Expenses, Income, Weekly Budgets)
 Full money feature, single currency ETB. Schema 0010 applied: `expense_categories`, `transactions` (type enum expense|income, amount numeric(12,2), categoryId nullable set-null, occurredAt tz), `weekly_budgets` (user+weekStart unique, totalBudget nullable), `category_budgets` (budget+category unique, limit). Gates clean (typecheck/lint/build) + all 11 routes incl /money 200.

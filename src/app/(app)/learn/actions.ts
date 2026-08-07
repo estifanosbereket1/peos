@@ -28,9 +28,21 @@ export async function getSuggestions(dayKey: string = todayKey()) {
     .from(learningTopics)
     .where(eq(learningTopics.userId, session.user.id))
     .orderBy(asc(learningTopics.createdAt));
+  const history = await db
+    .select({
+      topic: learningLogs.topic,
+      content: learningLogs.content,
+      explainBack: learningLogs.explainBack,
+    })
+    .from(learningLogs)
+    .where(eq(learningLogs.userId, session.user.id))
+    .orderBy(desc(learningLogs.createdAt))
+    .limit(10)
+    .then((rows) => rows.reverse());
   const suggestions = await getSuggestionsForDay(
     validDayKey(dayKey) ? dayKey : todayKey(),
     topics.map((t) => t.name),
+    history,
   );
   return suggestions;
 }
