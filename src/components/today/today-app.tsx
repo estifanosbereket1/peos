@@ -36,6 +36,8 @@ import {
 import type { HabitWithStatus } from "@/lib/habits";
 import { getGrowthSnapshot, type GrowthSnapshot } from "@/app/(app)/dashboard/actions";
 import { getProofCount, getRandomProof } from "@/app/(app)/proof/actions";
+import { getTodayMoney } from "@/app/(app)/money/actions";
+import { formatETB } from "@/lib/format";
 import { dayKeyToInstant, todayKey } from "@/lib/time";
 
 type Task = {
@@ -293,16 +295,19 @@ function GrowthColumn() {
   const [growth, setGrowth] = useState<GrowthSnapshot | null>(null);
   const [proofCount, setProofCount] = useState<number | null>(null);
   const [reminder, setReminder] = useState<string | null>(null);
+  const [money, setMoney] = useState<Awaited<ReturnType<typeof getTodayMoney>> | null>(null);
 
   const load = useCallback(async () => {
-    const [g, count, r] = await Promise.all([
+    const [g, count, r, m] = await Promise.all([
       getGrowthSnapshot(),
       getProofCount(),
       getRandomProof(),
+      getTodayMoney(),
     ]);
     setGrowth(g);
     setProofCount(count);
     setReminder(r);
+    setMoney(m);
   }, []);
 
   useEffect(() => {
@@ -352,6 +357,34 @@ function GrowthColumn() {
               <MiniStat label="Reviews" value={growth.reviews} href="/review" />
               <MiniStat label="Proof" value={proofCount ?? 0} href="/proof" />
             </div>
+
+            {money && (
+              <Link
+                href="/money"
+                className="flex items-center justify-between rounded-md border px-3 py-2 text-sm hover:bg-muted"
+              >
+                <span className="text-muted-foreground">
+                  Spent today:{" "}
+                  <span className="font-medium text-foreground tabular-nums">
+                    {formatETB(money.spentToday)}
+                  </span>
+                </span>
+                {money.left != null ? (
+                  <span
+                    className={cn(
+                      "tabular-nums",
+                      money.left < 0 ? "font-medium text-destructive" : "text-muted-foreground",
+                    )}
+                  >
+                    {money.left < 0
+                      ? `over by ${formatETB(-money.left)} this week`
+                      : `${formatETB(money.left)} left this week`}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">no budget set</span>
+                )}
+              </Link>
+            )}
 
             {reminder && (
               <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">

@@ -15,6 +15,7 @@ import {
   getAnalytics,
   getAnalyticsRange,
 } from "@/app/(app)/analytics/actions";
+import { formatETB } from "@/lib/format";
 
 export function AnalyticsApp() {
   const [current, setCurrent] = useState<Analytics | null>(null);
@@ -149,11 +150,43 @@ export function AnalyticsApp() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Last 8 weeks</CardTitle>
-          <CardDescription>Habit days · time · learning per week.</CardDescription>
+          <CardTitle>Spend this week</CardTitle>
+          <CardDescription>Expenses by category, ETB.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-3">
+          {current.money.byCategory.length === 0 || current.money.totalSpent === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No spending recorded this week.
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-2.5">
+              {current.money.byCategory.map((c) => (
+                <li key={c.name} className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between text-sm">
+                    <span>{c.name}</span>
+                    <span className="text-muted-foreground tabular-nums">
+                      {formatETB(c.spent)}
+                    </span>
+                  </div>
+                  <Bar
+                    value={c.spent}
+                    max={current.money.byCategory[0].spent}
+                    color="#8a8f98"
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Last 8 weeks</CardTitle>
+          <CardDescription>Habit days · time · learning · spend.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-4">
             <TrendCell
               values={trend.map((w) => w.habits.totalDays ? w.habits.daysDone / w.habits.totalDays : 0)}
               label="Habits"
@@ -168,6 +201,11 @@ export function AnalyticsApp() {
               values={trend.map((w) => w.learning.entries)}
               label="Learnings"
               fmt={(v) => String(v)}
+            />
+            <TrendCell
+              values={trend.map((w) => w.money.totalSpent)}
+              label="Spend (ETB)"
+              fmt={(v) => formatETB(v)}
             />
           </div>
         </CardContent>

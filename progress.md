@@ -23,6 +23,17 @@
 
 ## Progress log (newest first)
 
+### DONE — Money Management (Expenses, Income, Weekly Budgets)
+Full money feature, single currency ETB. Schema 0010 applied: `expense_categories`, `transactions` (type enum expense|income, amount numeric(12,2), categoryId nullable set-null, occurredAt tz), `weekly_budgets` (user+weekStart unique, totalBudget nullable), `category_budgets` (budget+category unique, limit). Gates clean (typecheck/lint/build) + all 11 routes incl /money 200.
+
+- **Money page (/money):** quick-entry card (ETB presets 50–500 + amount input + category select), full add/edit EntryDialog (type expense|income, amount, category for expenses, note, datetime-local), week summary cards (spent/income/net stats, total-budget progress bar with honest "over by X ETB" in destructive red, "spent today"), per-category spend vs category limits rows (red when over), Weekly budget editor (total + per-category limits, inline list + save — Weekly Anchors UX), transactions list searchable by note/amount + filterable by type/category, editable/deletable.
+- **Weekly budgets:** setTotalBudget + setCategoryLimits (upsert on unique keys, delete-stale-limits via notInArray); getWeekBudgets carries forward the nearest prior week's budget as a default (`carriedForward` flag surfaced in UI) but fully editable.
+- **Today Growth column:** added "Spent today: X ETB · Y ETB left this week" line (or "over by X ETB this week" in red when over; "no budget set" when none), links to /money. New `getTodayMoney` action.
+- **Analytics:** "Spend this week" card (expenses by category, reuse the "where your time went" Bar pattern) + 8-week trend row gained a "Spend (ETB)" TrendCell. `Analytics.money = { totalSpent, byCategory }`.
+- **Formatting:** `src/lib/format.ts` `formatETB()` → "Br 1,250" (en-ET grouping), used everywhere.
+- **Files:** `src/db/tables/money.ts` (relations + exports), `src/app/(app)/money/{actions.ts,page.tsx}`, `src/components/money/money-app.tsx`, nav link in `nav-links.tsx`.
+- GOTCHA: drizzle `$defaultFn` generates ids JS-side → raw-SQL inserts need explicit id (schema itself fine). `ilike` on numeric column fails in PG → cast `sql\`${amount}::text\``. Syncing state from props via useEffect trips set-state-in-effect → use `key={weekStart}` remount + lazy useState initializers instead.
+
 ### DONE — Dark Mode
 next-themes wired end-to-end (the `.dark` CSS vars were already in globals.css; `@custom-variant dark` already present).
 - `src/components/theme/theme-provider.tsx`: NextThemesProvider `attribute="class"`, defaultTheme system, enableSystem, disableTransitionOnChange.

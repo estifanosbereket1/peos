@@ -71,6 +71,13 @@
       "when": 1786126908567,
       "tag": "0009_absent_the_hand",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1786137826014,
+      "tag": "0010_pink_skullbuster",
+      "breakpoints": true
     }
   ]
 }

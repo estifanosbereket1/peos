@@ -14,6 +14,7 @@ const nav = [
   { href: "/habits", label: "Habits" },
   { href: "/fasting", label: "Fasting" },
   { href: "/proof", label: "Proof" },
+  { href: "/money", label: "Money" },
   { href: "/analytics", label: "Analytics" },
 ];
 

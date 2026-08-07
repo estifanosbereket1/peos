@@ -9,3 +9,4 @@ export * from "./tables/review";
 export * from "./tables/habits";
 export * from "./tables/fasting";
 export * from "./tables/proof";
+export * from "./tables/money";

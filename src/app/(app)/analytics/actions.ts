@@ -6,6 +6,7 @@ import { db } from "@/db";
 import {
   dailyPlanTasks,
   dailyPlans,
+  expenseCategories,
   fastingWindows,
   habitLogs,
   habits,
@@ -13,6 +14,7 @@ import {
   nightReviews,
   timeCategories,
   timeEntries,
+  transactions,
   weeklyAnchors,
   weeklyPlans,
 } from "@/db/schema";
@@ -58,6 +60,10 @@ export type Analytics = {
   energy: {
     byCategory: { name: string; color: string; avg: number; entries: number }[];
   };
+  money: {
+    totalSpent: number;
+    byCategory: { name: string; spent: number }[];
+  };
 };
 
 export async function getAnalytics(weekStart?: string) {
@@ -73,7 +79,7 @@ export async function getAnalytics(weekStart?: string) {
   const startInst = new Date(`${start}T00:00:00`);
   const endInst = new Date(`${end}T00:00:00`);
 
-  const [catRows, entryRows, habitRows, habitLogRows, planRows, taskRows, learningRows, fastRows, reviewRows, anchorRows] =
+  const [catRows, entryRows, habitRows, habitLogRows, planRows, taskRows, learningRows, fastRows, reviewRows, anchorRows, moneyCatRows, moneyTxRows] =
     await Promise.all([
       db
         .select({ id: timeCategories.id, name: timeCategories.name, color: timeCategories.color })
@@ -129,6 +135,19 @@ export async function getAnalytics(weekStart?: string) {
         .from(weeklyAnchors)
         .innerJoin(weeklyPlans, eq(weeklyAnchors.weeklyPlanId, weeklyPlans.id))
         .where(eq(weeklyPlans.userId, session.user.id)),
+      db
+        .select({ id: expenseCategories.id, name: expenseCategories.name })
+        .from(expenseCategories)
+        .where(eq(expenseCategories.userId, session.user.id)),
+      db
+        .select({
+          type: transactions.type,
+          categoryId: transactions.categoryId,
+          amount: transactions.amount,
+          occurredAt: transactions.occurredAt,
+        })
+        .from(transactions)
+        .where(eq(transactions.userId, session.user.id)),
     ]);
 
   // ---- Time ----
@@ -237,6 +256,26 @@ const avgEnergy = energies.length
   });
   energyByCategory.sort((a, b) => b.avg - a.avg);
 
+  // ---- Money: expenses this week by category ----
+  const moneyCatById = new Map(moneyCatRows.map((c) => [c.id, c.name]));
+  const spentById = new Map<string, number>();
+  let totalSpent = 0;
+  for (const t of moneyTxRows) {
+    if (t.type !== "expense") continue;
+    const at = new Date(t.occurredAt).getTime();
+    if (at < startInst.getTime() || at >= endInst.getTime()) continue;
+    const amt = Number(t.amount);
+    if (!Number.isFinite(amt) || amt <= 0) continue;
+    totalSpent += amt;
+    const key = t.categoryId ?? "none";
+    spentById.set(key, (spentById.get(key) ?? 0) + amt);
+  }
+  const moneyByCategory = [...spentById.entries()].map(([id, spent]) => ({
+    name: id === "none" ? "Uncategorized" : moneyCatById.get(id) ?? "Uncategorized",
+    spent: Math.round(spent * 100) / 100,
+  }));
+  moneyByCategory.sort((a, b) => b.spent - a.spent);
+
   return {
     weekStart: start,
     weekDaysCovered: habitTotalDays,
@@ -248,6 +287,7 @@ const avgEnergy = energies.length
     reviews: { count: weekReviews.length, avgEnergy },
     week: { anchors: weekAnchors.length, anchorsFollowed },
     energy: { byCategory: energyByCategory },
+    money: { totalSpent: Math.round(totalSpent * 100) / 100, byCategory: moneyByCategory },
   } satisfies Analytics;
 }
 
