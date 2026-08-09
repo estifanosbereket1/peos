@@ -6,6 +6,8 @@ import {
   CheckCircle2,
   ChevronLeft,
   GraduationCap,
+  Maximize2,
+  Minimize,
   Pencil,
   ShieldCheck,
   Trash2,
@@ -60,7 +62,9 @@ export function ReaderApp({ book }: { book: BookRow }) {
   const [status, setStatus] = useState<BookRow["status"]>(book.status);
   const [logOpen, setLogOpen] = useState(false);
   const [proofOpen, setProofOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const readerCardRef = useRef<HTMLDivElement | null>(null);
 
   const loadNotes = useCallback(async () => {
     setNotes(await listBookNotes(book.id));
@@ -76,6 +80,47 @@ export function ReaderApp({ book }: { book: BookRow }) {
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
+  }, []);
+
+  useEffect(() => {
+    const sync = () => {
+      const doc = document as Document & {
+        webkitFullscreenElement?: Element | null;
+      };
+      setIsFullscreen(
+        Boolean(document.fullscreenElement ?? doc.webkitFullscreenElement),
+      );
+    };
+    document.addEventListener("fullscreenchange", sync);
+    document.addEventListener("webkitfullscreenchange", sync);
+    sync();
+    return () => {
+      document.removeEventListener("fullscreenchange", sync);
+      document.removeEventListener("webkitfullscreenchange", sync);
+    };
+  }, []);
+
+  const toggleFullscreen = useCallback(async () => {
+    const el = readerCardRef.current;
+    if (!el) return;
+    try {
+      const doc = document as Document & {
+        webkitExitFullscreen?: () => void;
+        webkitFullscreenElement?: Element | null;
+      };
+      if (document.fullscreenElement ?? doc.webkitFullscreenElement) {
+        if (document.exitFullscreen) await document.exitFullscreen();
+        else doc.webkitExitFullscreen?.();
+      } else {
+        const anyEl = el as HTMLElement & {
+          webkitRequestFullscreen?: () => Promise<void> | void;
+        };
+        if (anyEl.requestFullscreen) await anyEl.requestFullscreen();
+        else if (anyEl.webkitRequestFullscreen) await anyEl.webkitRequestFullscreen();
+      }
+    } catch {
+      toast.error("Fullscreen isn't supported here.");
+    }
   }, []);
 
   const debouncePosition = useCallback(
@@ -160,6 +205,15 @@ export function ReaderApp({ book }: { book: BookRow }) {
         </div>
 
         <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void toggleFullscreen()}
+            aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+          >
+            {isFullscreen ? <Minimize /> : <Maximize2 />}
+            {isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setLogOpen(true)}>
             <GraduationCap />
             Log as learning
@@ -171,20 +225,25 @@ export function ReaderApp({ book }: { book: BookRow }) {
         </div>
       </div>
 
-      <Card>
-        <CardContent className="pt-6">
+      <Card
+        ref={readerCardRef}
+        className="fullscreen:fixed fullscreen:inset-0 fullscreen:z-50 fullscreen:overflow-auto fullscreen:rounded-none fullscreen:border-0"
+      >
+        <CardContent className="pt-6 fullscreen:flex fullscreen:flex-1 fullscreen:flex-col">
           {book.format === "pdf" ? (
             <PdfReader
               url={book.fileUrl}
               initialPage={book.currentPage}
               onTotalPages={onTotalPages}
               onNavigate={onPdfNavigate}
+              fullscreen={isFullscreen}
             />
           ) : (
             <EpubReader
               url={book.fileUrl}
               initialLocation={book.currentLocation}
               onNavigate={onEpubNavigate}
+              fullscreen={isFullscreen}
             />
           )}
         </CardContent>

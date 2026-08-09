@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 const MAX_SCALE = 2.5;
 const MIN_SCALE = 0.5;
@@ -14,11 +15,13 @@ export function PdfReader({
   initialPage,
   onTotalPages,
   onNavigate,
+  fullscreen = false,
 }: {
   url: string;
   initialPage: number;
   onTotalPages?: (pages: number) => void;
   onNavigate?: (page: number) => void;
+  fullscreen?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -28,6 +31,8 @@ export function PdfReader({
   const [loading, setLoading] = useState(true);
   const [jump, setJump] = useState("");
   const renderTask = useRef<{ cancel: () => void } | null>(null);
+  const pageRef = useRef(page);
+  const resizeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -53,8 +58,9 @@ export function PdfReader({
       const pdfPage = await doc.getPage(n);
       const containerWidth = containerRef.current.clientWidth;
       const base = pdfPage.getViewport({ scale: 1 });
-      const fitScale = Math.min(containerWidth / base.width, 1.6);
-      const finalScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, fitScale));
+      const maxScale = fullscreen ? MAX_SCALE : 1.6;
+      const fitScale = Math.min(containerWidth / base.width, maxScale);
+      const finalScale = Math.max(MIN_SCALE, fitScale);
       const viewport = pdfPage.getViewport({ scale: finalScale });
       const canvas = canvasRef.current;
       canvas.width = viewport.width;
@@ -64,13 +70,33 @@ export function PdfReader({
       renderTask.current = task;
       await task.promise;
     },
-    [doc],
+    [doc, fullscreen],
   );
 
   useEffect(() => {
     if (!doc) return;
     void renderPage(page);
   }, [doc, page, renderPage]);
+
+  useEffect(() => {
+    pageRef.current = page;
+  }, [page]);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => {
+      if (resizeTimer.current) clearTimeout(resizeTimer.current);
+      resizeTimer.current = setTimeout(() => {
+        void renderPage(pageRef.current);
+      }, 120);
+    });
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      if (resizeTimer.current) clearTimeout(resizeTimer.current);
+    };
+  }, [renderPage]);
 
   const goTo = useCallback(
     (n: number) => {
@@ -95,7 +121,10 @@ export function PdfReader({
     <div className="flex flex-col gap-3">
       <div
         ref={containerRef}
-        className="flex min-h-[60vh] items-start justify-center overflow-auto rounded-lg border bg-muted/30 p-4"
+        className={cn(
+          "flex items-start justify-center overflow-auto rounded-lg border bg-muted/30 p-4",
+          fullscreen ? "min-h-[calc(100vh-12rem)]" : "min-h-[60vh]",
+        )}
       >
         <canvas ref={canvasRef} className="max-w-full shadow-sm" />
       </div>

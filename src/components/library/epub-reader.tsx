@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 type RelocatedEvent = {
   start?: { cfi?: string };
@@ -14,6 +15,7 @@ type EpubRendition = {
   on: (event: "relocated", cb: (loc: RelocatedEvent) => void) => void;
   prev: () => void;
   next: () => void;
+  resize: (width: number, height: number) => void;
   destroy: () => void;
 };
 
@@ -28,10 +30,12 @@ export function EpubReader({
   url,
   initialLocation,
   onNavigate,
+  fullscreen = false,
 }: {
   url: string;
   initialLocation?: string | null;
   onNavigate?: (location: string, progress: number) => void;
+  fullscreen?: boolean;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const renditionRef = useRef<EpubRendition | null>(null);
@@ -106,6 +110,16 @@ export function EpubReader({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url]);
 
+  useEffect(() => {
+    const el = hostRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => {
+      renditionRef.current?.resize(el.clientWidth, el.clientHeight);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   if (error) {
     return (
       <div className="flex h-96 items-center justify-center text-sm text-destructive">
@@ -118,8 +132,11 @@ export function EpubReader({
     <div className="flex flex-col gap-3">
       <div
         ref={hostRef}
-        className="min-h-[65vh] overflow-hidden rounded-lg border bg-background"
-        style={{ height: "65vh" }}
+        className={cn(
+          "overflow-hidden rounded-lg border bg-background",
+          fullscreen ? "min-h-[calc(100vh-12rem)]" : "min-h-[65vh]",
+        )}
+        style={{ height: fullscreen ? "calc(100vh - 12rem)" : "65vh" }}
       />
       {loading ? (
         <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
