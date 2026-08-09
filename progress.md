@@ -24,6 +24,18 @@
 
 ## Progress log (newest first)
 
+### DONE — Library (Book Reader, PDF/EPUB)
+In-app book library with client-side PDF/EPUB rendering, position tracking, statuses, notes, and Learning Log / Proof Log shortcuts. New nav item **Library** (`/library`, `/library/[id]`). Schema **0014** applied: `books`, `book_notes` (+ `book_format`, `book_status` enums). All gates clean (typecheck/lint/build) + all routes 200; upload + file-stream routes auth-gated (anon → 303/307 redirect).
+
+- **Storage (flagged):** no blob storage exists, so book files are stored **as base64 in the `books.file` column** (same pattern as voice notes; 50MB cap enforced server-side with a clear 413). `fileUrl` = `/api/library/file/{id}`, a GET route streaming bytes with the real MIME + private cache. Swap to S3/Tigris later.
+- **Schema (0014):** `books` (id, userId, title, author nullable, fileUrl, file, mime, fileSize, format pdf|epub, totalPages nullable — populated once pdf.js reports it, currentPage, currentLocation text for EPUB CFI, progress 0..1, status unread|reading|finished, addedAt, lastOpenedAt nullable, indexed on userId). `book_notes` (id, bookId cascade, userId, page nullable, content, createdAt).
+- **EPUB position decision:** epub.js uses CFI locations, not page numbers, so EPUBs track position in `currentLocation` (CFI string) + `progress`; PDFs use `currentPage`/`totalPages`. Both map to the same debounced `savePosition` action.
+- **Upload route:** `POST /api/library/upload` (multipart title/author/file) validates PDF/EPUB by extension+MIME, caps at 50MB (413 with message), returns `{id}`.
+- **Reader (`/library/[id]`):** PDF via `pdfjs-dist` (canvas pages, prev/next/jump, auto `totalPages` report); EPUB via `epubjs` (paginated rendition, prev/next, CFI relocation + progress %). Position saved debounced (~600ms), never per render. Status auto-updates unread→reading on open (`markOpened`); **finished is manual only** (Mark finished button).
+- **Notes panel:** add a note optionally tagged to the current page (PDF), list/edit/delete.
+- **Shortcuts:** "Log as learning" pre-fills topic=book title + content reference (user writes the entry, saves via `createLog`); "Save as proof" pre-fills a proof entry referencing the book (user confirms/edits, saves via `addProof`).
+- **Deps added:** `pdfjs-dist`, `epubjs`. Worker vendored to `public/pdf.worker.min.mjs`; eslint now ignores `public/**`.
+
 ### DONE — Voice Notes (Recording, Transcription, Entry-Attached Clips)
 Browser `MediaRecorder` recordings stored in Postgres + transcribed via Groq Whisper (multilingual, auto language — Amharic/English). Schema 0012 applied: `voice_categories`, `voice_notes` (+ `voice_note_status` enum); **schema 0013** added `entry_voices` (+ `entry_owner_kind` enum) + made `learning_logs.content` / `proof_entries.text` nullable for voice-only entries. All gates clean (typecheck/lint/build) + all routes 200; `/voice` and `/api/voice/audio/[id]` auth-gated.
 
