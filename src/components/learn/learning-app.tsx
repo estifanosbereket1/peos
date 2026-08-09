@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { BookOpen, Search, Trash2 } from "lucide-react";
+import { BookOpen, Pencil, Search, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -24,9 +24,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 import { DayNav } from "@/components/day-nav";
+import { VoiceClipButton, type PendingClip } from "@/components/voice/voice-clip";
+import { EntryClipList } from "@/components/voice/entry-clip-list";
+import { attachClip } from "@/lib/client-attach-clip";
 import type { LearningLogRow as LogRow } from "@/lib/learning-row";
 import {
   addTopic,
+  aiConfigured,
   createLog,
   deleteLog,
   getDayLog,
@@ -34,6 +38,7 @@ import {
   listTopics,
   removeTopic,
   searchLogs,
+  updateLog,
 } from "@/app/(app)/learn/actions";
 import { todayKey } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -61,6 +66,15 @@ export function LearningApp() {
   const [source, setSource] = useState<Suggestion["source"]>("user");
   const [query, setQuery] = useState("");
   const [history, setHistory] = useState<LogRow[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [contentClip, setContentClip] = useState<PendingClip | null>(null);
+  const [explainClip, setExplainClip] = useState<PendingClip | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [aiReady, setAiReady] = useState(false);
+
+  useEffect(() => {
+    void aiConfigured().then(setAiReady);
+  }, []);
 
   const load = useCallback(async (key: string) => {
     const [dayLogs, sugg] = await Promise.all([
@@ -79,11 +93,40 @@ export function LearningApp() {
   const submit = async () => {
     const t = topic.trim();
     const c = content.trim();
-    if (!t || !c) return;
-    await createLog(dayKey, t, c, source, explainBack);
-    setContent("");
-    setExplainBack("");
-    await load(dayKey);
+    if (!t || saving) return;
+    setSaving(true);
+    try {
+      if (editingId) {
+        await updateLog(editingId, t, c, explainBack);
+        if (contentClip) await attachClip("learn", editingId, "content", contentClip);
+        if (explainClip) await attachClip("learn", editingId, "explainBack", explainClip);
+      } else {
+        const id = await createLog(dayKey, t, c, source, explainBack);
+        if (id) {
+          if (contentClip) await attachClip("learn", id, "content", contentClip);
+          if (explainClip) await attachClip("learn", id, "explainBack", explainClip);
+        }
+      }
+      setEditingId(null);
+      setTopic("");
+      setContent("");
+      setExplainBack("");
+      setContentClip(null);
+      setExplainClip(null);
+      await load(dayKey);
+      if (history.length) setHistory(await searchLogs(query));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const editLog = (l: LogRow) => {
+    setEditingId(l.id);
+    setTopic(l.topic);
+    setContent(l.content ?? "");
+    setExplainBack(l.explainBack ?? "");
+    setContentClip(null);
+    setExplainClip(null);
   };
 
   return (
@@ -162,31 +205,82 @@ export function LearningApp() {
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="content">What did you learn?</Label>
-              <Textarea
-                id="content"
-                rows={4}
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder="Explain it in your own words…"
-              />
+              <div className="relative">
+                <Textarea
+                  id="content"
+                  rows={4}
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  placeholder="Explain it in your own words…"
+                  className="pr-9"
+                />
+                <div className="absolute right-1.5 top-1.5">
+                  <VoiceClipButton
+                    onClipChange={setContentClip}
+                    onTranscribe={(t) =>
+                      setContent((content.trim() ? `${content.trim()}\n` : "") + t.trim())
+                    }
+                  />
+                </div>
+              </div>
+              {contentClip && (
+                <p className="text-xs text-muted-foreground">
+                  Voice clip attached — saved with this entry.
+                </p>
+              )}
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="explain-back">Teach it back (optional)</Label>
-              <Textarea
-                id="explain-back"
-                rows={3}
-                value={explainBack}
-                onChange={(e) => setExplainBack(e.target.value)}
-                placeholder="If you had to explain this to someone else, what would you say?"
-              />
+              <div className="relative">
+                <Textarea
+                  id="explain-back"
+                  rows={3}
+                  value={explainBack}
+                  onChange={(e) => setExplainBack(e.target.value)}
+                  placeholder="If you had to explain this to someone else, what would you say?"
+                  className="pr-9"
+                />
+                <div className="absolute right-1.5 top-1.5">
+                  <VoiceClipButton
+                    onClipChange={setExplainClip}
+                    onTranscribe={(t) =>
+                      setExplainBack((cur) =>
+                        (cur.trim() ? `${cur.trim()}\n` : "") + t.trim(),
+                      )
+                    }
+                  />
+                </div>
+              </div>
+              {explainClip && (
+                <p className="text-xs text-muted-foreground">
+                  Voice clip attached — saved with this entry.
+                </p>
+              )}
             </div>
-            <Button
-              onClick={submit}
-              disabled={!topic.trim() || !content.trim()}
-              className="self-start"
-            >
-              Save
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                onClick={submit}
+                disabled={!topic.trim() || saving}
+                className="self-start"
+              >
+                {saving
+                  ? "Saving…"
+                  : editingId
+                    ? "Update"
+                    : content.trim() || contentClip
+                      ? "Save"
+                      : "Save voice"}
+              </Button>
+              {editingId && (
+                <Button
+                  variant="ghost"
+                  onClick={() => setEditingId(null)}
+                  className="self-start"
+                >
+                  Cancel
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -204,6 +298,11 @@ export function LearningApp() {
           ) : (
             <LogList
               logs={logs}
+              aiReady={aiReady}
+              onEdit={editLog}
+              onClipsChanged={async () => {
+                await load(dayKey);
+              }}
               onDelete={async (id) => {
                 await deleteLog(id);
                 await load(dayKey);
@@ -230,11 +329,16 @@ export function LearningApp() {
             />
           </div>
           {query ? (
-            <SearchResults query={query} onResults={setHistory} />
+            <SearchResults query={query} aiReady={aiReady} onResults={setHistory} />
           ) : history.length > 0 ? (
             <LogList
               logs={history}
               compact
+              aiReady={aiReady}
+              onEdit={editLog}
+              onClipsChanged={async () => {
+                setHistory(await searchLogs(query));
+              }}
               onDelete={async (id) => {
                 await deleteLog(id);
                 setHistory(history.filter((l) => l.id !== id));
@@ -255,12 +359,18 @@ export function LearningApp() {
 
 function LogList({
   logs,
+  onEdit,
   onDelete,
   compact,
+  aiReady,
+  onClipsChanged,
 }: {
   logs: LogRow[];
+  onEdit?: (log: LogRow) => void;
   onDelete?: (id: string) => void;
   compact?: boolean;
+  aiReady?: boolean;
+  onClipsChanged?: () => Promise<void>;
 }) {
   return (
     <ul className="flex flex-col divide-y">
@@ -274,11 +384,22 @@ function LogList({
             {!compact && (
               <span className="text-xs text-muted-foreground">{l.learnDate}</span>
             )}
-            {onDelete && (
+            {onEdit && (
               <Button
                 variant="ghost"
                 size="icon"
                 className="ml-auto size-7"
+                onClick={() => onEdit(l)}
+                aria-label="Edit entry"
+              >
+                <Pencil className="size-4" />
+              </Button>
+            )}
+            {onDelete && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn("size-7", !onEdit && "ml-auto")}
                 onClick={() => onDelete(l.id)}
                 aria-label="Delete entry"
               >
@@ -286,9 +407,13 @@ function LogList({
               </Button>
             )}
           </div>
-          <p className="whitespace-pre-wrap text-sm text-muted-foreground">
-            {l.content}
-          </p>
+          {l.content ? (
+            <p className="whitespace-pre-wrap text-sm text-muted-foreground">
+              {l.content}
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground italic">voice entry</p>
+          )}
           {l.explainBack && (
             <div className="mt-1 rounded-md bg-muted/40 px-3 py-2">
               <p className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -297,6 +422,12 @@ function LogList({
               <p className="whitespace-pre-wrap text-sm">{l.explainBack}</p>
             </div>
           )}
+          <EntryClipList
+            ownerKind="learn"
+            ownerIds={[l.id]}
+            aiReady={aiReady ?? false}
+            onChanged={onClipsChanged}
+          />
         </li>
       ))}
     </ul>
@@ -306,9 +437,11 @@ function LogList({
 function SearchResults({
   query,
   onResults,
+  aiReady,
 }: {
   query: string;
   onResults: (logs: LogRow[]) => void;
+  aiReady: boolean;
 }) {
   const [logs, setLogs] = useState<LogRow[] | null>(null);
 
@@ -331,7 +464,7 @@ function SearchResults({
   if (logs.length === 0) {
     return <p className="text-sm text-muted-foreground">No matches.</p>;
   }
-  return <LogList logs={logs} compact />;
+  return <LogList logs={logs} compact aiReady={aiReady} />;
 }
 
 function TopicsManager() {

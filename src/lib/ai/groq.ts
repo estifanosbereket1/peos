@@ -1,6 +1,9 @@
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_TRANSCRIBE_URL = "https://api.groq.com/openai/v1/audio/transcriptions";
 const GROQ_MODEL = "llama-3.3-70b-versatile";
+const GROQ_WHISPER_MODEL = "whisper-large-v3-turbo";
 const TIMEOUT_MS = 15_000;
+const TRANSCRIBE_TIMEOUT_MS = 60_000;
 
 export function isGroqConfigured(): boolean {
   return Boolean(process.env.GROQ_API_KEY);
@@ -65,6 +68,48 @@ export async function callGroq<Shape = unknown>(
       }
     }
     return content.trim();
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Transcribe an audio clip via Groq Whisper (multilingual, auto language
+ * detection — no language is hardcoded). Returns the transcript text, or
+ * `null` on any failure (missing key, timeout, non-2xx, empty result) so
+ * callers can degrade gracefully.
+ */
+export async function transcribeAudio(
+  audioBytes: Uint8Array,
+  mime: string,
+): Promise<string | null> {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) return null;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TRANSCRIBE_TIMEOUT_MS);
+
+  try {
+    const form = new FormData();
+    form.append("file", new Blob([audioBytes as BlobPart], { type: mime }), "voice.webm");
+    form.append("model", GROQ_WHISPER_MODEL);
+    form.append("response_format", "json");
+
+    const res = await fetch(GROQ_TRANSCRIBE_URL, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body: form,
+      signal: controller.signal,
+      cache: "no-store",
+    });
+
+    if (!res.ok) return null;
+    const data = (await res.json()) as { text?: unknown };
+    if (typeof data?.text !== "string") return null;
+    const text = data.text.trim();
+    return text || null;
   } catch {
     return null;
   } finally {

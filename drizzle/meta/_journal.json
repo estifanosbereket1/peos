@@ -85,6 +85,20 @@
       "when": 1786138913491,
       "tag": "0011_milky_shard",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1786139795810,
+      "tag": "0012_free_rattler",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1786271117662,
+      "tag": "0013_mute_tenebrous",
+      "breakpoints": true
     }
   ]
 }

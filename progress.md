@@ -17,11 +17,24 @@
 ## Key decisions
 - DB driver `postgres-js` (portable: works local + Neon pooled w/ `prepare:false`). NOT neon-http (HTTP driver can't reach local TCP).
 - Day rollover = **4am local** via shared util; `DAY_ROLLOVER_HOUR = 4`.
-- Groq AI: server-only `fetch` (no SDK), 3 on-demand features, JSON-mode w/ shared `callGroq` helper that returns `null` on any failure so the app degrades; missing `GROQ_API_KEY` hides feature buttons entirely.
+- Groq AI: server-only `fetch` (no SDK), on-demand features, JSON-mode w/ shared `callGroq` helper that returns `null` on any failure so the app degrades; missing `GROQ_API_KEY` hides feature buttons entirely. Voice transcription uses Groq Whisper (`whisper-large-v3-turbo`) via `transcribeAudio`.
+- Voice notes audio stored **base64-in-DB** (no blob storage); flagged in the Voice section for a future serverless move.
 - PWA: **final polish phase**, after dashboard.
 - shadcn/ui + sonner toasts + light-first calm theme.
 
 ## Progress log (newest first)
+
+### DONE — Voice Notes (Recording, Transcription, Entry-Attached Clips)
+Browser `MediaRecorder` recordings stored in Postgres + transcribed via Groq Whisper (multilingual, auto language — Amharic/English). Schema 0012 applied: `voice_categories`, `voice_notes` (+ `voice_note_status` enum); **schema 0013** added `entry_voices` (+ `entry_owner_kind` enum) + made `learning_logs.content` / `proof_entries.text` nullable for voice-only entries. All gates clean (typecheck/lint/build) + all routes 200; `/voice` and `/api/voice/audio/[id]` auth-gated.
+
+- **Storage decision (flagged):** no blob storage exists, so audio is stored **as base64 in the `voice_notes.audio` column** (least new infra). `audioUrl` = `/api/voice/audio/{id}`, a GET route that streams bytes back with the real MIME + private cache. `mime` column added for correct playback. Swap to S3/Tigris if this ever moves to a serverless host.
+- **Schema (0012):** `voice_categories` (id, userId, name, sortOrder) lazy-seeded per user with **Feeling, Technical, Random Thought, Idea, Rant** (like time categories, no color). `voice_notes` (id, userId, categoryId nullable set-null, audioUrl, audio, mime, transcript, transcriptStatus pending|done|failed|skipped, durationSeconds, note caption). Indexed on userId.
+- **Recording:** `src/components/voice/use-recorder.ts` → getUserMedia + MediaRecorder (`audio/webm;codecs=opus` fallback webm/mp4), base64 file-reader, duration from timestamps, **soft-cap ~12 min auto-stop**. Mic-permission rejection shown inline, never blocks the page.
+- **/voice page:** Record/Stop toggle + optional category select (show a "Categories..." manager dialog that adds/removes, mirrors the time CategoriesManager) + preview `<audio>` with duration + Save/Discard. Notes list (newest first): play/pause `<audio controls src={audioUrl}>`, category tag, duration, timestamp, editable caption + editable category (inline edit), delete. Transcript shown below once present. Statuses: **pending** "Transcribing…", **done** shows transcript, **failed** "Transcription failed — try again", **skipped** "No transcript yet. — Transcribe" button. **Search** over transcripts.
+- **Transcription is user-triggered everywhere now:** recording saves audio **only** (status `skipped`); no auto-transcribe. Per-note **Transcribe** button → `transcribeNoteNow(id)` action → `transcribeStoredNote()` → `transcribeAudio()` in `src/lib/ai/groq.ts`: POST `/v1/audio/transcriptions`, model `whisper-large-v3-turbo`, **no language param → auto-detect**, `response_format json`, 60s timeout, `null` on any failure → status flips to `failed`. Saving never depends on transcription. `aiConfigured()` gates: when no key, notes save fine and no Transcribe button renders.
+- **Entry-attached clips (learn/proof/review):** replaced the auto-transcribe dictate button with `VoiceClipButton` (`src/components/voice/voice-clip.tsx`) — records a clip **without transcribing**; an explicit "Transcribe to text" button optionally fills the field. Clips are uploaded after the entry exists via `POST /api/entry-voice` (multipart: ownerKind, ownerId, field, file; replaces per-field) → `src/lib/entry-voice.ts` `insertEntryVoice()` (status `skipped`). Saved clips render via `EntryClipList` (`src/components/voice/entry-clip-list.tsx`) with play + optional Transcribe + remove (`transcribeEntryClipNow` / `deleteEntryClip` in `voice/actions.ts`, streaming via `GET /api/entry-voice/[id]`). `src/lib/client-attach-clip.ts` `attachClip()` uploads a pending clip. Save actions (`createLog`/`updateLog`, `addProof`, `saveReview`) now return the entry id; learn/review/proof entries can be **text, voice, or both** (nullable text columns for voice-only). `src/components/voice/voice-dictate.tsx` deleted.
+- GOTCHA: `blobToBase64` needs `blob.type` set or Playback breaks; server actions swallow File→ pass base64 string + mime instead of FormData; unescaped `'` triggers `react/no-unescaped-entities` in JSX — write `&apos;`.
+- Verified: `db:generate` 0012+0013 applied; roundtrip insert→`GET /api/voice/audio/[id]` 200 with correct MIME via signed-in cookie; `POST /api/entry-voice` attach→`GET /api/entry-voice/[id]` streams byte-identical, re-attach replaces (1 row/field), anon → 307 /login; typecheck/lint/build clean; all routes 200.
 
 ### DONE — Groq AI Integration (Learning Suggestions, Proof Summarizer, Review Pattern-Spotter)
 Real Groq calls now back three on-demand features. Schema 0011 applied: `growth_summaries` (id, user_id, content, created_at + index). All gates clean (typecheck/lint/build) + all routes 200 (auth-gated → /login).
@@ -128,8 +141,8 @@ Schema m6 (0006) applied: `night_reviews` (unique user+day_key; wins, improve, n
 ### Phase 4 — Daily Learning Log (DONE)
 Schema m5 (0005) applied: `learning_topics` (user pool), `learning_logs` (learn_date, topic, content, source enum suggestion|user|ai).
 - src/lib/learning-suggestions.ts: 5/day deterministic suggestions — user topics first + rotating dev-category window (day-of-year offset). `aiSuggestAsync` stubbed → returns [] (ai source exists but never produces yet).
-- /learn: LearningApp — suggestion picker (source badge), topic+content form, today's log, history w/ live search (ilike topic/content), "Manage topics" dialog.
-- Actions @ src/app/(app)/learn/actions.ts: getSuggestions, getDayLog, createLog, updateLog (unused for now), deleteLog, searchLogs, listTopics/addTopic/removeTopic.
+- /learn: LearningApp — suggestion picker (source badge), topic+content form, today's log, history w/ live search (ilike topic/content), "Manage topics" dialog. Saved entries editable (Edit loads row into the form → Update), in both today's log and search history. Each entry can hold text, a voice clip, or both (clip per content / explainBack field).
+- Actions @ src/app/(app)/learn/actions.ts: getSuggestions, getDayLog, createLog, updateLog, deleteLog, searchLogs, listTopics/addTopic/removeTopic, aiConfigured.
 - Moved shared `LearningLogRow` type + mapper to src/lib/learning-row.ts (server files can't export non-async).
 - Base UI Dialog: uses `render` prop, NOT asChild.
 - Verified: page 200, suggestion rotation math, user-first ordering, build/lint/typecheck clean.

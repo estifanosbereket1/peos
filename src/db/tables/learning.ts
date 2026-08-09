@@ -31,7 +31,7 @@ export const learningLogs = pgTable(
       .references(() => user.id, { onDelete: "cascade" }),
     learnDate: text("learn_date").notNull(), // YYYY-MM-DD (local)
     topic: text("topic").notNull(),
-    content: text("content").notNull(),
+    content: text("content"), // null when the entry is a voice-only clip
     explainBack: text("explain_back"), // teach-it-back (optional)
     source: learningLogSource("source").notNull().default("user"),
     createdAt: timestamp("created_at").defaultNow().notNull(),

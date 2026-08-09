@@ -14,7 +14,7 @@ export const proofEntries = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    text: text("text").notNull(),
+    text: text("text"), // null when the entry is a voice-only clip
     source: proofSource("source").notNull().default("manual"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },

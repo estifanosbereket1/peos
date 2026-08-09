@@ -9,9 +9,9 @@ import { callGroq, isGroqConfigured } from "@/lib/ai/groq";
 import { requireSession } from "@/lib/session";
 import { shiftDayKey, todayKey } from "@/lib/time";
 
-type ProofRow = {
+export type ProofRow = {
   id: string;
-  text: string;
+  text: string | null;
   source: "manual" | "auto";
   createdAt: Date;
 };
@@ -55,17 +55,23 @@ export async function searchProof(query?: string): Promise<ProofRow[]> {
   return rows.map(toRow);
 }
 
-export async function addProof(text: string, source: "manual" | "auto" = "manual") {
+export async function addProof(
+  text: string,
+  source: "manual" | "auto" = "manual",
+): Promise<string | null> {
   const session = await requireSession();
   const t = text.trim();
-  if (!t) return;
-  await db.insert(proofEntries).values({
-    userId: session.user.id,
-    text: t,
-    source,
-  });
+  const [created] = await db
+    .insert(proofEntries)
+    .values({
+      userId: session.user.id,
+      text: t || null,
+      source,
+    })
+    .returning({ id: proofEntries.id });
   revalidatePath("/proof");
   revalidatePath("/"); // today's proof stat
+  return created?.id ?? null;
 }
 
 export async function addProofFromReview(text: string) {
@@ -104,9 +110,10 @@ export async function getRandomProof(): Promise<string | null> {
   const rows = await db
     .select({ id: proofEntries.id, text: proofEntries.text })
     .from(proofEntries)
-    .where(eq(proofEntries.userId, session.user.id));
-  if (rows.length === 0) return null;
-  return rows[Math.floor(Math.random() * rows.length)].text;
+    .where(and(eq(proofEntries.userId, session.user.id)));
+  const withText = rows.filter((r) => r.text?.trim());
+  if (withText.length === 0) return null;
+  return withText[Math.floor(Math.random() * withText.length)].text;
 }
 
 // ---------- AI summarizer ----------
@@ -162,6 +169,7 @@ export async function summarizeGrowth(): Promise<{ text: string } | null> {
   }
 
   const proofText = proof
+    .filter((p) => p.text?.trim())
     .slice(0, 40)
     .map((p) => `- ${p.text}`)
     .join("\n");

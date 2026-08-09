@@ -12,6 +12,9 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { VoiceClipButton, type PendingClip } from "@/components/voice/voice-clip";
+import { EntryClipList } from "@/components/voice/entry-clip-list";
+import { attachClip } from "@/lib/client-attach-clip";
 
 import {
   addProof,
@@ -27,16 +30,18 @@ import {
 
 type ProofRow = {
   id: string;
-  text: string;
+  text: string | null;
   source: "manual" | "auto";
   createdAt: Date;
 };
 
 export function ProofApp() {
   const [text, setText] = useState("");
+  const [clip, setClip] = useState<PendingClip | null>(null);
   const [rows, setRows] = useState<ProofRow[]>([]);
   const [query, setQuery] = useState("");
   const [aiOn, setAiOn] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
     setRows(await getProof());
@@ -60,24 +65,47 @@ export function ProofApp() {
           <CardTitle>Proof log</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
-          <Textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="What did you do? Something that actually happened — no vibes."
-            rows={2}
-          />
+          <div className="relative">
+            <Textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="What did you do? Something that actually happened — no vibes."
+              rows={2}
+              className="pr-9"
+            />
+            <div className="absolute right-1.5 top-1.5">
+              <VoiceClipButton
+                onClipChange={setClip}
+                onTranscribe={(t) => {
+                  const sep = text.trim() ? "\n" : "";
+                  setText(text.trim() + sep + t.trim());
+                }}
+              />
+            </div>
+          </div>
+          {clip && (
+            <p className="text-xs text-muted-foreground">
+              Voice clip attached — will be saved with this entry.
+            </p>
+          )}
           <Button
             className="self-start"
-            disabled={!text.trim()}
+            disabled={(!text.trim() && !clip) || saving}
             onClick={() => {
               void (async () => {
-                await addProof(text);
+                setSaving(true);
+                const id = await addProof(text);
+                if (id && clip) {
+                  await attachClip("proof", id, "text", clip);
+                }
                 setText("");
+                setClip(null);
                 await load();
+                setSaving(false);
               })();
             }}
           >
-            Save
+            {saving ? "Saving…" : "Save"}
           </Button>
         </CardContent>
       </Card>
@@ -107,10 +135,12 @@ export function ProofApp() {
           ) : (
             <ProofList
               rows={rows}
+              aiReady={aiOn}
               onDelete={async (id) => {
                 await deleteProof(id);
                 await load();
               }}
+              onChanged={load}
             />
           )}
         </CardContent>
@@ -214,31 +244,45 @@ function SummaryCard() {
 
 function ProofList({
   rows,
+  aiReady,
   onDelete,
+  onChanged,
 }: {
   rows: ProofRow[];
+  aiReady: boolean;
   onDelete: (id: string) => void;
+  onChanged?: () => Promise<void>;
 }) {
   return (
     <ul className="flex flex-col divide-y">
       {rows.map((r) => (
-        <li key={r.id} className="group flex items-start gap-3 py-2.5">
-          <div className="min-w-0 flex-1">
-            <p className="whitespace-pre-wrap text-sm">{r.text}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
-              {r.createdAt.toLocaleDateString()}
-              {r.source === "auto" ? " · kept" : ""}
-            </p>
+        <li key={r.id} className="group flex flex-col gap-2 py-2.5">
+          <div className="flex items-start gap-3">
+            <div className="min-w-0 flex-1">
+              {r.text && <p className="whitespace-pre-wrap text-sm">{r.text}</p>}
+              <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+                {r.createdAt.toLocaleDateString()}
+                {r.source === "auto" ? " · kept" : ""}
+                {!r.text ? " · voice entry" : ""}
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7 opacity-0 transition-opacity group-hover:opacity-100"
+              onClick={() => onDelete(r.id)}
+              aria-label="Delete proof"
+            >
+              <Trash2 />
+            </Button>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-7 opacity-0 transition-opacity group-hover:opacity-100"
-            onClick={() => onDelete(r.id)}
-            aria-label="Delete proof"
-          >
-            <Trash2 />
-          </Button>
+          <EntryClipList
+            ownerKind="proof"
+            ownerIds={[r.id]}
+            fields={["text"]}
+            aiReady={aiReady}
+            onChanged={onChanged}
+          />
         </li>
       ))}
     </ul>
@@ -261,7 +305,7 @@ function SearchResults({ query }: { query: string }) {
   if (!rows) return <p className="text-sm text-muted-foreground">Searching…</p>;
   if (rows.length === 0)
     return <p className="text-sm text-muted-foreground">No matches.</p>;
-  return <ProofList rows={rows} onDelete={() => {}} />;
+  return <ProofList rows={rows} aiReady={false} onDelete={() => {}} />;
 }
 
 function formatDateTime(d: Date) {

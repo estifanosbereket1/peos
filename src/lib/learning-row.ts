@@ -6,7 +6,7 @@ export type LearningLogRow = {
   id: string;
   learnDate: string;
   topic: string;
-  content: string;
+  content: string | null;
   explainBack: string | null;
   source: LearningLogSource;
   updatedAt: Date;

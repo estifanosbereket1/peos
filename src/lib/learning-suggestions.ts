@@ -19,7 +19,7 @@ export type Suggestion = {
 
 export type HistoryEntry = {
   topic: string;
-  content: string;
+  content: string | null;
   explainBack?: string | null;
 };
 

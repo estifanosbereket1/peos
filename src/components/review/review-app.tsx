@@ -18,6 +18,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 import { DayNav } from "@/components/day-nav";
+import { VoiceClipButton, type PendingClip } from "@/components/voice/voice-clip";
+import { EntryClipList } from "@/components/voice/entry-clip-list";
+import { attachClip } from "@/lib/client-attach-clip";
 import { addProofFromReview } from "@/app/(app)/proof/actions";
 import {
   findReviewPatterns,
@@ -49,11 +52,18 @@ export function ReviewApp() {
     nextMove: "",
     energy: null,
   });
+  const [clips, setClips] = useState<Record<string, PendingClip | null>>({
+    wins: null,
+    improve: null,
+    nextMove: null,
+  });
   const [saving, setSaving] = useState(false);
   const [proofPrompt, setProofPrompt] = useState(false);
   const [proofSaved, setProofSaved] = useState(false);
   const [history, setHistory] = useState<Review[]>([]);
   const [aiOn, setAiOn] = useState(false);
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [savedClipsReload, setSavedClipsReload] = useState(0);
 
   useEffect(() => {
     void reviewAiConfigured().then(setAiOn);
@@ -68,6 +78,8 @@ export function ReviewApp() {
       nextMove: review?.nextMove ?? "",
       energy: review?.energy ?? null,
     });
+    setDraftId(review?.id ?? null);
+    setClips({ wins: null, improve: null, nextMove: null });
   }, []);
 
   useEffect(() => {
@@ -82,8 +94,19 @@ export function ReviewApp() {
   }, []);
 
   const hasContent = Boolean(
-    draft.wins?.trim() || draft.improve?.trim() || draft.nextMove?.trim(),
+    draft.wins?.trim() ||
+      draft.improve?.trim() ||
+      draft.nextMove?.trim() ||
+      clips.wins ||
+      clips.improve ||
+      clips.nextMove,
   );
+
+  const attachAll = async (id: string) => {
+    for (const [field, clip] of Object.entries(clips)) {
+      if (clip) await attachClip("review", id, field, clip);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -137,6 +160,8 @@ export function ReviewApp() {
             placeholder="A win, a highlight, something you finished…"
             value={draft.wins ?? ""}
             onChange={(v) => setDraft({ ...draft, wins: v })}
+            clip={clips.wins}
+            onClip={(c) => setClips({ ...clips, wins: c })}
           />
           <ReviewField
             id="improve"
@@ -144,6 +169,8 @@ export function ReviewApp() {
             placeholder="One thing you'd tweak…"
             value={draft.improve ?? ""}
             onChange={(v) => setDraft({ ...draft, improve: v })}
+            clip={clips.improve}
+            onClip={(c) => setClips({ ...clips, improve: c })}
           />
           <ReviewField
             id="next-move"
@@ -151,6 +178,8 @@ export function ReviewApp() {
             placeholder="The one next step…"
             value={draft.nextMove ?? ""}
             onChange={(v) => setDraft({ ...draft, nextMove: v })}
+            clip={clips.nextMove}
+            onClip={(c) => setClips({ ...clips, nextMove: c })}
           />
 
           <Button
@@ -159,8 +188,10 @@ export function ReviewApp() {
             onClick={() => {
               void (async () => {
                 setSaving(true);
-                await saveReview(draft);
+                const id = await saveReview(draft);
+                if (id) await attachAll(id);
                 setSaving(false);
+                setClips({ wins: null, improve: null, nextMove: null });
                 setProofSaved(false);
                 // Good day + recorded a win → offer to keep it as proof (not forced).
                 setProofPrompt(
@@ -171,6 +202,20 @@ export function ReviewApp() {
           >
             {saving ? "Saving…" : "Save review"}
           </Button>
+
+          {draftId && (
+            <EntryClipList
+              key={`${draftId}-${savedClipsReload}`}
+              ownerKind="review"
+              ownerIds={[draftId]}
+              fields={["wins", "improve", "nextMove"]}
+              aiReady={aiOn}
+              onChanged={async () => {
+                await load(dayKey);
+                setSavedClipsReload((n) => n + 1);
+              }}
+            />
+          )}
 
           {proofPrompt && !proofSaved && draft.wins?.trim() && (
             <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm">
@@ -210,6 +255,7 @@ export function ReviewApp() {
           await load(day);
         }}
         initialHistory={history}
+        aiReady={aiOn}
       />
 
       {aiOn && <PatternCard />}
@@ -276,23 +322,44 @@ function ReviewField({
   placeholder,
   value,
   onChange,
+  clip,
+  onClip,
 }: {
   id: string;
   label: string;
   placeholder: string;
   value: string;
   onChange: (v: string) => void;
+  clip: PendingClip | null;
+  onClip: (c: PendingClip | null) => void;
 }) {
+  const insert = useCallback(
+    (text: string) => {
+      onChange((value.trim() ? `${value.trim()}\n` : "") + text.trim());
+    },
+    [value, onChange],
+  );
   return (
     <div className="flex flex-col gap-1.5">
       <Label htmlFor={id}>{label}</Label>
-      <Textarea
-        id={id}
-        rows={3}
-        value={value}
-        placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
-      />
+      <div className="relative">
+        <Textarea
+          id={id}
+          rows={3}
+          value={value}
+          placeholder={placeholder}
+          onChange={(e) => onChange(e.target.value)}
+          className="pr-9"
+        />
+        <div className="absolute right-1.5 top-1.5">
+          <VoiceClipButton onClipChange={onClip} onTranscribe={insert} />
+        </div>
+      </div>
+      {clip && (
+        <p className="text-xs text-muted-foreground">
+          Voice clip attached — saved with this review.
+        </p>
+      )}
     </div>
   );
 }
@@ -300,9 +367,11 @@ function ReviewField({
 function HistoryCard({
   initialHistory,
   onOpen,
+  aiReady,
 }: {
   initialHistory: Review[];
   onOpen: (day: string) => void;
+  aiReady: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [rows, setRows] = useState<Review[]>(initialHistory);
@@ -361,6 +430,14 @@ function HistoryCard({
                     <span className="font-medium text-foreground">Next:</span>{" "}
                     {r.nextMove}
                   </p>
+                )}
+                {r.id && (
+                  <EntryClipList
+                    ownerKind="review"
+                    ownerIds={[r.id]}
+                    fields={["wins", "improve", "nextMove"]}
+                    aiReady={aiReady}
+                  />
                 )}
               </li>
             ))}

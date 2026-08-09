@@ -11,6 +11,7 @@ import {
 } from "@/db/schema";
 import { getSuggestionsForDay } from "@/lib/learning-suggestions";
 import { toLearningLogRow } from "@/lib/learning-row";
+import { isGroqConfigured } from "@/lib/ai/groq";
 import { requireSession } from "@/lib/session";
 import { todayKey } from "@/lib/time";
 
@@ -79,21 +80,25 @@ export async function createLog(
   content: string,
   source: "suggestion" | "user" | "ai" = "user",
   explainBack?: string,
-) {
+): Promise<string | null> {
   const session = await requireSession();
   const t = topic.trim();
   const c = content.trim();
   const e = explainBack?.trim();
-  if (!t || !c || !validDayKey(dayKey)) return;
-  await db.insert(learningLogs).values({
-    userId: session.user.id,
-    learnDate: validDayKey(dayKey) ? dayKey : todayKey(),
-    topic: t,
-    content: c,
-    source,
-    explainBack: e || null,
-  });
+  if (!t || !validDayKey(dayKey)) return null;
+  const [created] = await db
+    .insert(learningLogs)
+    .values({
+      userId: session.user.id,
+      learnDate: validDayKey(dayKey) ? dayKey : todayKey(),
+      topic: t,
+      content: c || null,
+      source,
+      explainBack: e || null,
+    })
+    .returning({ id: learningLogs.id });
   revalidatePath("/learn");
+  return created?.id ?? null;
 }
 
 export async function updateLog(
@@ -113,7 +118,7 @@ export async function updateLog(
     .update(learningLogs)
     .set({
       topic: topic.trim(),
-      content: content.trim(),
+      content: content.trim() || null,
       explainBack: e || null,
       updatedAt: new Date(),
     })
@@ -169,4 +174,8 @@ export async function removeTopic(id: string) {
     .delete(learningTopics)
     .where(and(eq(learningTopics.id, id), eq(learningTopics.userId, session.user.id)));
   revalidatePath("/learn");
+}
+
+export async function aiConfigured(): Promise<boolean> {
+  return isGroqConfigured();
 }

@@ -11,3 +11,4 @@ export * from "./tables/fasting";
 export * from "./tables/proof";
 export * from "./tables/money";
 export * from "./tables/growth-summary";
+export * from "./tables/voice";

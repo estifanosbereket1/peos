@@ -37,14 +37,14 @@ export type SaveReviewInput = {
   energy?: number | null;
 };
 
-export async function saveReview(input: SaveReviewInput) {
+export async function saveReview(input: SaveReviewInput): Promise<string | null> {
   const session = await requireSession();
-  if (!validDayKey(input.dayKey)) return;
+  if (!validDayKey(input.dayKey)) return null;
   const energy =
     input.energy == null
       ? null
       : Math.min(5, Math.max(1, Math.round(input.energy)));
-  await db
+  const [row] = await db
     .insert(nightReviews)
     .values({
       userId: session.user.id,
@@ -63,8 +63,10 @@ export async function saveReview(input: SaveReviewInput) {
         energy,
         updatedAt: new Date(),
       },
-    });
+    })
+    .returning({ id: nightReviews.id });
   revalidatePath("/review");
+  return row?.id ?? null;
 }
 
 export async function listReviews(limit = 60) {
