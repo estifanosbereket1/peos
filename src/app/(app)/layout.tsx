@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { PeosLogo } from "@/components/brand/peos-logo";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { NavLinks } from "@/components/nav/nav-links";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
@@ -16,8 +17,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           <Link
             href="/"
             className="font-semibold tracking-tight text-sm"
+            aria-label="peos home"
           >
-            peos
+            <PeosLogo withWordmark />
           </Link>
           <NavLinks />
           <div className="ml-auto flex items-center gap-3">
