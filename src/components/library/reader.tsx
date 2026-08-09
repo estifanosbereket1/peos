@@ -227,9 +227,26 @@ export function ReaderApp({ book }: { book: BookRow }) {
 
       <Card
         ref={readerCardRef}
-        className="fullscreen:fixed fullscreen:inset-0 fullscreen:z-50 fullscreen:overflow-auto fullscreen:rounded-none fullscreen:border-0"
+        className="relative fullscreen:fixed fullscreen:inset-0 fullscreen:z-50 fullscreen:overflow-hidden fullscreen:rounded-none fullscreen:border-0"
       >
-        <CardContent className="pt-6 fullscreen:flex fullscreen:flex-1 fullscreen:flex-col">
+        {isFullscreen && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void toggleFullscreen()}
+            aria-label="Exit fullscreen"
+            className="absolute right-4 top-4 z-20"
+          >
+            <Minimize />
+            Exit fullscreen
+          </Button>
+        )}
+        <CardContent
+          className={cn(
+            "pt-6",
+            isFullscreen && "flex min-h-0 flex-1 flex-col overflow-hidden",
+          )}
+        >
           {book.format === "pdf" ? (
             <PdfReader
               url={book.fileUrl}

@@ -10,6 +10,15 @@ import { cn } from "@/lib/utils";
 const MAX_SCALE = 2.5;
 const MIN_SCALE = 0.5;
 
+function isRenderCancel(err: unknown): boolean {
+  return (
+    !!err &&
+    typeof err === "object" &&
+    "name" in err &&
+    (err as { name?: string }).name === "RenderingCancelledException"
+  );
+}
+
 export function PdfReader({
   url,
   initialPage,
@@ -29,6 +38,7 @@ export function PdfReader({
   const [page, setPage] = useState(initialPage > 0 ? initialPage : 1);
   const [numPages, setNumPages] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [jump, setJump] = useState("");
   const renderTask = useRef<{ cancel: () => void } | null>(null);
   const pageRef = useRef(page);
@@ -38,13 +48,20 @@ export function PdfReader({
     let alive = true;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
-    loadPdf(url).then((d) => {
-      if (!alive) return;
-      setDoc(d);
-      setNumPages(d.numPages);
-      onTotalPages?.(d.numPages);
-      setLoading(false);
-    });
+    setError(null);
+    loadPdf(url)
+      .then((d) => {
+        if (!alive) return;
+        setDoc(d);
+        setNumPages(d.numPages);
+        onTotalPages?.(d.numPages);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!alive) return;
+        setError("Could not load this PDF.");
+        setLoading(false);
+      });
     return () => {
       alive = false;
       renderTask.current?.cancel();
@@ -68,7 +85,12 @@ export function PdfReader({
       renderTask.current?.cancel();
       const task = pdfPage.render({ canvas, viewport });
       renderTask.current = task;
-      await task.promise;
+      try {
+        await task.promise;
+      } catch (err) {
+        if (isRenderCancel(err)) return;
+        console.error(err);
+      }
     },
     [doc, fullscreen],
   );
@@ -108,6 +130,14 @@ export function PdfReader({
     [doc, onNavigate],
   );
 
+  if (error) {
+    return (
+      <div className="flex h-96 items-center justify-center text-sm text-destructive">
+        {error}
+      </div>
+    );
+  }
+
   if (loading || !doc) {
     return (
       <div className="flex h-96 items-center justify-center gap-2 text-sm text-muted-foreground">
@@ -118,12 +148,17 @@ export function PdfReader({
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div
+      className={cn(
+        "flex flex-col gap-3",
+        fullscreen && "flex-1 min-h-0",
+      )}
+    >
       <div
         ref={containerRef}
         className={cn(
-          "flex items-start justify-center overflow-auto rounded-lg border bg-muted/30 p-4",
-          fullscreen ? "min-h-[calc(100vh-12rem)]" : "min-h-[60vh]",
+          "flex min-h-[60vh] flex-1 items-start justify-center overflow-auto rounded-lg border bg-muted/30 p-4",
+          fullscreen && "min-h-0",
         )}
       >
         <canvas ref={canvasRef} className="max-w-full shadow-sm" />
