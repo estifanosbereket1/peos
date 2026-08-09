@@ -178,6 +178,7 @@ function BookCard({
         <div className="flex items-center justify-between">
           <Button
             render={<Link href={`/library/${book.id}`} />}
+            nativeButton={false}
             size="sm"
             variant="outline"
             className="gap-1"

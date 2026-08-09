@@ -25,10 +25,10 @@ export function PeosLogo({
         <text
           x="256"
           y="320"
-          font-family="Geist, Arial, Helvetica, sans-serif"
-          font-size="220"
-          font-weight="600"
-          text-anchor="middle"
+          fontFamily="Geist, Arial, Helvetica, sans-serif"
+          fontSize="220"
+          fontWeight="600"
+          textAnchor="middle"
           fill="#f5f5f5"
         >
           pe

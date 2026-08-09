@@ -49,7 +49,10 @@ export function EpubReader({
       try {
         const ePub = (await import("epubjs")).default;
         if (!alive || !hostRef.current) return;
-        book = ePub(url) as EpubBook;
+        // Our file URL has no ".epub" extension, so epub.js would otherwise
+        // treat it as a directory of files. openAs:"epub" makes it fetch the
+        // whole file as binary and unzip it client-side.
+        book = ePub(url, { openAs: "epub" }) as EpubBook;
         bookRef.current = book;
         rendition = book.renderTo(hostRef.current, {
           width: "100%",

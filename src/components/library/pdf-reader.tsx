@@ -144,7 +144,7 @@ export function PdfReader({
 }
 
 async function loadPdf(url: string) {
-  const pdfjs = await import("pdfjs-dist");
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
   pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
   const task = pdfjs.getDocument({ url });
   return task.promise;
