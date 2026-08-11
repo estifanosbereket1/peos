@@ -24,6 +24,16 @@
 
 ## Progress log (newest first)
 
+### DONE — PWA Polish (Installable + Offline, `9c281da`)
+PWA is installable and has an offline-capable shell on top of the pre-existing manifest/sw.js/icons. Verified in a **prod build** (headless at 390px): SW registers, `/manifest.webmanifest` 200 with icons, hashed `_next/static` chunks get runtime-cached, a visited page (`/proof`) reloads fully offline, an unvisited route (`/time`) serves the branded offline page, zero console errors. Gates clean (typecheck/lint/build).
+
+- **`public/sw.js` v2:** skip-redirect precache of the shell (`/`, `/offline.html`, `/manifest.webmanifest`, icons); **network-first navigations** → cached shell → `/offline.html`; **stale-while-revalidate** runtime cache for hashed `_next/static` assets (JS/CSS/woff2 — versioned by Next so never stale across deploys); pass-through for `/api/` + cross-origin; `SKIP_WAITING` message handler. Cache name bumped (`peos-shell-v2` / `peos-runtime-v2`) so the change force-activates.
+- **`public/offline.html`:** minimal branded fallback with retry button.
+- **`src/proxy.ts`:** exempts `/manifest.webmanifest` + `/offline.html` from the auth gate (they were 307→`/login`, and the SW precache was caching the login page under those URLs). `src/app/manifest.ts`: added `id`, `scope`, `display_override`, `orientation`, `categories`, `lang`.
+- **Root layout:** `appleWebApp` metadata (→ `mobile-web-app-capable`, `apple-mobile-web-app-title`, status-bar style; this Next version emits the modern `mobile-web-app-capable` tag) + `formatDetection` (no phone-number auto-links).
+- **Install/update UX:** `useInstallPrompt` (`beforeinstallprompt`/`appinstalled`) + `InstallButton` (Download icon) shown in the desktop header and at the bottom of the mobile drawer ("Add peos to your home screen"). `sw-register` now toasts **"Update available — Reload"** (`SKIP_WAITING` → `controllerchange` auto-reload).
+- **Env note:** the seatflow docker stack (another project) took ports 3000 and 5432; peos dev runs on **3001** and prod-rebuilds are verified on **3002**, both against a dedicated `peos-postgres` container on **5433** (env overrides only, nothing committed). `NEXT_PUBLIC_*` and `BETTER_AUTH_*` are baked at build time, so a prod verify needs `NEXT_PUBLIC_APP_URL`/`BETTER_AUTH_URL` set during `npm run build` AND `npm run start`, and the prod server must be (re)started against the same `.next`.
+
 ### DONE — Responsive Shell (Mobile/Tablet/Desktop)
 App is fully responsive from 320px (iPhone SE) up to desktop with a new mobile drawer nav. Verified headless at 320×568, 390px, 768px, 820px, 1024px, 1280px: zero horizontal overflow on all 13 feature pages, drawer opens/navigates/closes with active states, inline nav hides <md. Gates clean (typecheck/lint/build).
 
