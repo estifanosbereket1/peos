@@ -24,6 +24,18 @@
 
 ## Progress log (newest first)
 
+### DONE — Responsive Shell (Mobile/Tablet/Desktop)
+App is fully responsive from 320px (iPhone SE) up to desktop with a new mobile drawer nav. Verified headless at 320×568, 390px, 768px, 820px, 1024px, 1280px: zero horizontal overflow on all 13 feature pages, drawer opens/navigates/closes with active states, inline nav hides <md. Gates clean (typecheck/lint/build).
+
+- **Mobile nav (`src/components/nav/mobile-nav.tsx`, new):** Base UI Dialog slide-in drawer (`w-72 max-w-[85vw]`) with all 13 links, active-state highlight via `usePathname`, closes on link click; hamburger trigger only shows <768px (`md:hidden`).
+- **Shell (`(app)/layout.tsx`):** header nav wraps below `md` (`flex flex-wrap py-3 md:h-14`); inline `NavLinks` live in a scrollable `overflow-x-auto` container hidden <md; right-side cluster (theme/name/sign-out) is `shrink-0`; user name shows at `lg+` only.
+- **Nav/scrolling:** `nav-links.tsx` drops `flex-wrap` (whitespace-nowrap inside the scroll container) so the 13 links never overflow at tablet widths.
+- **Shared day/week nav:** `day-nav.tsx`, `time-log-app.tsx` DayNav, `weekly-plan.tsx` all `flex flex-wrap` with the label `min-w-40 flex-1 sm:flex-none` so prev/next/back stay reachable at 320px.
+- **Touch accessibility:** every `opacity-0 group-hover:opacity-100` action (readers, today task delete, proof delete, plan hover actions, money delete) gained `focus-visible:opacity-100` / `focus-within:opacity-100`.
+- **Narrow-row truncation:** `min-w-0` + `truncate` on money budget strings, fasting ranges, learn topics, analytics category names, daily-plan task spans — no `overflow-hidden` hacks.
+- **Form/grid collapse:** money stats `grid-cols-1 sm:grid-cols-3`, money dialog fields `sm:grid-cols-2`, timeline start/end `sm:grid-cols-2`, today mini-stats `sm:grid-cols-4`, money weekly-budget label/input full-width rows, voice record/status + note rows `flex-wrap`, audio `w-32 sm:w-64`.
+- Committed as `333487e`.
+
 ### DONE — Library (Book Reader, PDF/EPUB)
 In-app book library with client-side PDF/EPUB rendering, position tracking, statuses, notes, and Learning Log / Proof Log shortcuts. New nav item **Library** (`/library`, `/library/[id]`). Schema **0014** applied: `books`, `book_notes` (+ `book_format`, `book_status` enums). All gates clean (typecheck/lint/build) + all routes 200; upload + file-stream routes auth-gated (anon → 303/307 redirect).
 
