@@ -243,13 +243,13 @@ function TaskList({
           </button>
           <span
             className={cn(
-              "flex-1 text-sm",
+              "min-w-0 flex-1 break-words text-sm",
               t.completed && "text-muted-foreground line-through",
             )}
           >
             {t.text}
           </span>
-          <span className="flex items-center opacity-0 transition-opacity group-hover:opacity-100">
+          <span className="flex shrink-0 items-center opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
             <Button
               variant="ghost"
               size="icon"

@@ -419,7 +419,7 @@ function NotesPanel({
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    className="opacity-0 transition-opacity group-hover:opacity-100"
+                    className="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
                     onClick={() => {
                       setEditingId(n.id);
                       setContent(n.content);
@@ -432,7 +432,7 @@ function NotesPanel({
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    className="opacity-0 transition-opacity group-hover:opacity-100"
+                    className="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
                     onClick={() => void onDelete(n.id)}
                     aria-label="Delete note"
                   >

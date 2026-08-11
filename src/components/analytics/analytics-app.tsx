@@ -93,15 +93,15 @@ export function AnalyticsApp() {
             <ul className="flex flex-col gap-2.5">
               {current.time.byCategory.map((c) => (
                 <li key={c.name} className="flex flex-col gap-1">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="flex items-center gap-2">
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="flex min-w-0 items-center gap-2">
                       <span
-                        className="size-2.5 rounded-full"
+                        className="size-2.5 shrink-0 rounded-full"
                         style={{ background: c.color }}
                       />
-                      {c.name}
+                      <span className="truncate">{c.name}</span>
                     </span>
-                    <span className="text-muted-foreground tabular-nums">
+                    <span className="shrink-0 text-muted-foreground tabular-nums">
                       {formatMinutes(c.minutes)}
                     </span>
                   </div>

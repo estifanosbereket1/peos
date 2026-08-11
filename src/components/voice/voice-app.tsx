@@ -128,7 +128,7 @@ export function VoiceApp({
         <CardContent className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <Select value={categoryId} onValueChange={(v) => setCategoryId(v ?? "")}>
-              <SelectTrigger className="w-56" aria-label="Category">
+              <SelectTrigger className="w-full sm:w-56" aria-label="Category">
                 <SelectValue placeholder="No category">{selectedName}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -144,7 +144,7 @@ export function VoiceApp({
             </Button>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             {!recorder.recording ? (
               <Button
                 onClick={() => void recorder.start()}
@@ -302,8 +302,8 @@ function NoteRow({
 
   return (
     <li className="flex flex-col gap-2 py-3">
-      <div className="flex items-start gap-3">
-        <audio controls src={note.audioUrl} className="h-9 w-44 shrink-0 sm:w-64" />
+      <div className="flex flex-wrap items-start gap-3">
+        <audio controls src={note.audioUrl} className="h-9 w-32 shrink-0 sm:w-64" />
         <div className="min-w-0 flex-1">
           <p className="text-xs text-muted-foreground">
             {note.categoryName ? `${note.categoryName} · ` : ""}

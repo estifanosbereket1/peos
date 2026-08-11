@@ -190,7 +190,7 @@ function SummaryCard() {
         {result && (
           <div className="rounded-md border bg-muted/30 px-3 py-2.5">
             <p className="whitespace-pre-wrap text-sm">{result}</p>
-            <div className="mt-2 flex items-center justify-between">
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 justify-between">
               <span className="text-xs text-muted-foreground tabular-nums">
                 {formatDateTime(new Date())}
               </span>
@@ -269,7 +269,7 @@ function ProofList({
             <Button
               variant="ghost"
               size="icon"
-              className="size-7 opacity-0 transition-opacity group-hover:opacity-100"
+              className="size-7 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
               onClick={() => onDelete(r.id)}
               aria-label="Delete proof"
             >

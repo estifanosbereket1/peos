@@ -27,7 +27,7 @@ export function NavLinks() {
     href === "/" ? pathname === "/" : pathname.startsWith(href);
 
   return (
-    <div className="flex items-center gap-1 flex-wrap">
+    <div className="flex items-center gap-1 whitespace-nowrap">
       {nav.map((item) => {
         const active = isActive(item.href);
         return (

@@ -164,11 +164,11 @@ function DayNav({
   const isToday = dayKey === todayKey();
   const d = dayKeyToInstant(dayKey, 0);
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <Button variant="outline" size="icon" onClick={() => onChange(shiftDayKey(dayKey, -1))}>
         ←
       </Button>
-      <span className="min-w-40 text-center text-sm font-medium">
+      <span className="min-w-40 flex-1 text-center text-sm font-medium sm:flex-none">
         {isToday
           ? "Today"
           : d.toLocaleDateString(undefined, {

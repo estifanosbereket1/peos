@@ -376,8 +376,8 @@ function LogList({
     <ul className="flex flex-col divide-y">
       {logs.map((l) => (
         <li key={l.id} className="flex flex-col gap-1 py-2.5">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">{l.topic}</span>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            <span className="min-w-0 truncate text-sm font-medium">{l.topic}</span>
             <span className="text-xs text-muted-foreground">
               {SOURCE_LABEL[l.source]}
             </span>
@@ -522,7 +522,7 @@ function TopicsManager() {
         <ul className="flex flex-col divide-y">
           {topics.map((t) => (
             <li key={t.id} className="flex items-center gap-2 py-2">
-              <span className="flex-1 text-sm">{t.name}</span>
+              <span className="min-w-0 flex-1 truncate text-sm">{t.name}</span>
               <Button
                 variant="ghost"
                 size="icon"

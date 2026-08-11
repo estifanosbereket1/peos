@@ -91,17 +91,17 @@ export function FastingApp() {
           ) : (
             <ul className="flex flex-col divide-y">
               {history.map((f) => (
-                <li key={f.id} className="flex items-center gap-3 py-2.5">
+                <li key={f.id} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 py-2.5">
                   <span className="text-sm font-medium tabular-nums">
                     {formatDuration(durationMs(f, now))}
                   </span>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
                     {formatRange(f)}
                   </span>
                   {f.goalHours && (
                     <span
                       className={cn(
-                        "text-xs",
+                        "shrink-0 text-xs",
                         f.endAt && hoursBetween(f.startAt, f.endAt) >= f.goalHours
                           ? "text-foreground"
                           : "text-muted-foreground",
@@ -113,7 +113,7 @@ export function FastingApp() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="ml-auto size-7"
+                    className="ml-auto size-7 shrink-0"
                     onClick={() => {
                       void (async () => {
                         await deleteFast(f.id);

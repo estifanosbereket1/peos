@@ -269,7 +269,7 @@ function TaskList({
           </button>
           <span
             className={cn(
-              "flex-1 text-sm",
+              "min-w-0 flex-1 text-sm break-words",
               t.completed && "text-muted-foreground line-through",
             )}
           >
@@ -278,7 +278,7 @@ function TaskList({
           <Button
             variant="ghost"
             size="icon"
-            className="size-7 opacity-0 transition-opacity group-hover:opacity-100"
+            className="size-7 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
             onClick={() => onDelete(t.id)}
             aria-label="Delete task"
           >
@@ -351,7 +351,7 @@ function GrowthColumn() {
               )}
             </div>
 
-            <div className="grid grid-cols-4 gap-3 text-center">
+            <div className="grid grid-cols-2 gap-3 text-center sm:grid-cols-4">
               <MiniStat label="Habits" value={growth.habitsDone} href="/habits" />
               <MiniStat label="Learnings" value={growth.learningEntries} href="/learn" />
               <MiniStat label="Reviews" value={growth.reviews} href="/review" />
@@ -361,9 +361,9 @@ function GrowthColumn() {
             {money && (
               <Link
                 href="/money"
-                className="flex items-center justify-between rounded-md border px-3 py-2 text-sm hover:bg-muted"
+                className="flex flex-wrap items-center gap-x-3 gap-y-0.5 justify-between rounded-md border px-3 py-2 text-sm hover:bg-muted"
               >
-                <span className="text-muted-foreground">
+                <span className="min-w-0 truncate text-muted-foreground">
                   Spent today:{" "}
                   <span className="font-medium text-foreground tabular-nums">
                     {formatETB(money.spentToday)}
@@ -372,7 +372,7 @@ function GrowthColumn() {
                 {money.left != null ? (
                   <span
                     className={cn(
-                      "tabular-nums",
+                      "shrink-0 tabular-nums",
                       money.left < 0 ? "font-medium text-destructive" : "text-muted-foreground",
                     )}
                   >
@@ -381,7 +381,7 @@ function GrowthColumn() {
                       : `${formatETB(money.left)} left this week`}
                   </span>
                 ) : (
-                  <span className="text-muted-foreground">no budget set</span>
+                  <span className="shrink-0 text-muted-foreground">no budget set</span>
                 )}
               </Link>
             )}

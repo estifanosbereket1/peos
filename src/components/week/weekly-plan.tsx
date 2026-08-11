@@ -65,7 +65,7 @@ export function WeeklyPlanApp() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" size="icon" onClick={() => setWeekStart(shiftWeekKey(weekStart, -1))}>
             ←
           </Button>

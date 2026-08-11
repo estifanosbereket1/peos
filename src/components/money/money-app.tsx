@@ -289,7 +289,7 @@ function WeekSummaryCards({ summary }: { summary: WeekSummary | null }) {
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <div className="grid grid-cols-3 gap-3 text-center">
+          <div className="grid grid-cols-1 gap-3 text-center sm:grid-cols-3">
             <MiniStat label="Spent" value={formatETB(spent)} />
             <MiniStat label="Income" value={formatETB(income)} />
             <MiniStat
@@ -482,8 +482,8 @@ function BudgetEditorCard({
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        <div className="flex items-center gap-2">
-          <Label className="w-32 text-sm" htmlFor="total-budget">
+        <div className="flex flex-wrap items-center gap-2">
+          <Label className="w-full text-sm sm:w-32" htmlFor="total-budget">
             Total budget
           </Label>
           <Input
@@ -493,7 +493,7 @@ function BudgetEditorCard({
             placeholder="e.g. 2500"
             value={total}
             onChange={(e) => setTotal(e.target.value)}
-            className="w-40"
+            className="w-full sm:w-40"
           />
           <span className="text-sm text-muted-foreground">ETB</span>
         </div>
@@ -651,7 +651,7 @@ function HistoryList({
               </div>
               <span
                 className={cn(
-                  "tabular-nums",
+                  "shrink-0 whitespace-nowrap tabular-nums",
                   t.type === "expense"
                     ? "text-foreground"
                     : "text-emerald-700 dark:text-emerald-400",
@@ -762,7 +762,7 @@ function EntryDialog({
               ))}
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="amount">Amount (ETB)</Label>
               <Input
