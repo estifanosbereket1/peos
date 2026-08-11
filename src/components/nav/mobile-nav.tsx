@@ -9,6 +9,8 @@ import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 
 import { Button } from "@/components/ui/button";
 import { PeosLogo } from "@/components/brand/peos-logo";
+import { InstallButton } from "@/components/pwa/install-button";
+import { useInstallPrompt } from "@/components/pwa/use-install-prompt";
 import { cn } from "@/lib/utils";
 
 const nav = [
@@ -30,6 +32,7 @@ const nav = [
 export function MobileNav() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const installPrompt = useInstallPrompt();
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -85,6 +88,14 @@ export function MobileNav() {
               );
             })}
           </nav>
+          {installPrompt && (
+            <div className="flex items-center gap-2 border-t p-3">
+              <InstallButton />
+              <span className="text-sm text-muted-foreground">
+                Add peos to your home screen
+              </span>
+            </div>
+          )}
         </DialogPrimitive.Popup>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>

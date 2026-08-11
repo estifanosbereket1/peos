@@ -5,6 +5,7 @@ import { PeosLogo } from "@/components/brand/peos-logo";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { MobileNav } from "@/components/nav/mobile-nav";
 import { NavLinks } from "@/components/nav/nav-links";
+import { InstallButton } from "@/components/pwa/install-button";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { requireSession } from "@/lib/session";
 
@@ -26,6 +27,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             <NavLinks />
           </div>
           <div className="ml-auto flex shrink-0 items-center gap-3">
+            <InstallButton />
             <ThemeToggle />
             <span className="hidden text-sm text-muted-foreground lg:inline">
               {session.user.name}

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>peos · Offline</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        background: #1c1c1c;
+        color: #f5f5f5;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        text-align: center;
+        padding: 24px;
+      }
+      .card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        max-width: 340px;
+      }
+      h1 {
+        margin: 0;
+        font-size: 1.4rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      p {
+        margin: 0;
+        color: rgba(245, 245, 245, 0.7);
+        line-height: 1.5;
+        font-size: 0.95rem;
+      }
+      button {
+        margin-top: 8px;
+        border: 1px solid rgba(245, 245, 245, 0.25);
+        background: transparent;
+        color: #f5f5f5;
+        font: inherit;
+        font-size: 0.95rem;
+        padding: 9px 18px;
+        border-radius: 8px;
+        cursor: pointer;
+      }
+      button:hover {
+        background: rgba(245, 245, 245, 0.08);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 512 512" aria-hidden="true">
+        <rect width="512" height="512" rx="96" fill="#262626" />
+        <text x="256" y="320" font-family="system-ui, sans-serif" font-size="220" font-weight="600" text-anchor="middle" fill="#f5f5f5">pe</text>
+        <circle cx="392" cy="150" r="34" fill="#2f6f6f" />
+      </svg>
+      <h1>You&apos;re offline</h1>
+      <p>peos needs a connection to load your data. Reconnect and try again.</p>
+      <button onclick="location.reload()">Retry</button>
+    </div>
+  </body>
+</html>
