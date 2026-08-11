@@ -1,0 +1,4 @@
+# Vendored third-party minified build — exclude from language stats.
+# Without this, Linguist counts pdf.js's 1.3MB minified worker as
+# JavaScript and the repo's language pie shows JS instead of TypeScript.
+public/pdf.worker.min.mjs linguist-vendored
