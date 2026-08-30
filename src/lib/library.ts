@@ -4,10 +4,12 @@ import { db } from "@/db";
 import { books } from "@/db/schema";
 
 /**
- * Sane cap for book files. PDFs/EPUBs are far larger than voice clips —
- * 50MB keeps Postgres text columns comfortable while accepting real books.
+ * Sane cap for book files. Capped at 4MB (not the 50MB PDFs/EPUBs could
+ * otherwise reach) because uploads run through a Vercel serverless function,
+ * which hard-limits request bodies to 4.5MB — anything larger is rejected
+ * by the platform before this route ever sees it.
  */
-export const MAX_FILE_BYTES = 50 * 1024 * 1024;
+export const MAX_FILE_BYTES = 4 * 1024 * 1024;
 
 function bytesToBase64(bytes: Uint8Array): string {
   return Buffer.from(bytes).toString("base64");

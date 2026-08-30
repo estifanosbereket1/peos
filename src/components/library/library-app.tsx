@@ -307,7 +307,7 @@ function UploadDialog({
         <DialogHeader>
           <DialogTitle>Add a book</DialogTitle>
           <DialogDescription>
-            PDF or EPUB, up to 50MB. Author is optional — fill it in later.
+            PDF or EPUB, up to 4MB. Author is optional — fill it in later.
           </DialogDescription>
         </DialogHeader>
         <form

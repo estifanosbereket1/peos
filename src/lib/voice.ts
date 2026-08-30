@@ -5,7 +5,9 @@ import { db } from "@/db";
 import { voiceNotes } from "@/db/schema";
 import { isGroqConfigured, transcribeAudio } from "@/lib/ai/groq";
 
-const MAX_AUDIO_BYTES = 30 * 1024 * 1024;
+// Capped under Vercel's 4.5MB serverless request-body limit — voice notes
+// are short clips, so this is well above what a real recording needs.
+const MAX_AUDIO_BYTES = 4 * 1024 * 1024;
 
 function validDuration(d?: number | null): number | null {
   if (typeof d !== "number" || Number.isNaN(d) || d < 0) return null;
